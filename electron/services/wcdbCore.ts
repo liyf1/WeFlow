@@ -393,9 +393,7 @@ export class WcdbCore {
 
 
 
-  /**
-   * WCDB 原生库路径：完全由外部用户配置提供（第三方可插拔实现），不再内置查找/校验来源。
-   */
+  /** 可选的自定义 WCDB 路径；留空或文件不存在时回退到随包内置库。 */
   private libPath: string | null = null
 
   setLibPath(libPath: string | null | undefined): void {
@@ -403,15 +401,41 @@ export class WcdbCore {
   }
 
   private getDllPath(): string {
+    const isMac = process.platform === 'darwin'
+    const isLinux = process.platform === 'linux'
+    const isArm64 = process.arch === 'arm64'
+    const libName = isMac ? 'libwcdb_api.dylib' : isLinux ? 'libwcdb_api.so' : 'wcdb_api.dll'
+    const platformDir = isMac ? 'macos' : isLinux ? 'linux' : 'win32'
+    const archDir = isMac ? 'universal' : isArm64 ? 'arm64' : 'x64'
+
+    if (this.libPath && existsSync(this.libPath)) return this.libPath
+
     const envDllPath = process.env.WCDB_DLL_PATH
-    if (this.libPath) return this.libPath
     if (envDllPath && envDllPath.length > 0) return envDllPath
-    return ''
+
+    const roots = [
+      process.env.WCDB_RESOURCES_PATH || null,
+      this.resourcesPath || null,
+      process.resourcesPath ? join(process.resourcesPath, 'resources') : null,
+      process.resourcesPath || null,
+      join(process.cwd(), 'resources')
+    ].filter(Boolean) as string[]
+
+    const candidates = roots.flatMap((root) => [
+      join(root, 'wcdb', platformDir, archDir, libName),
+      join(root, 'wcdb', platformDir, isArm64 ? 'arm64' : 'x64', libName),
+      join(root, 'wcdb', platformDir, 'universal', libName),
+      join(root, 'wcdb', platformDir, libName),
+      join(root, platformDir, archDir, libName),
+      join(root, libName)
+    ])
+
+    return candidates.find((candidate) => existsSync(candidate)) || candidates[0] || libName
   }
 
   private formatInitProtectionError(code: number): string {
     const messages: Record<number, string> = {
-      '-1': '未配置 WCDB 实现，请在设置中指定第三方库文件路径',
+      '-1': '未找到 WCDB 本地解析组件，请检查安装包是否完整',
       '-3': '未找到 session.db 文件，请确认目标应用已登录并且数据目录完整',
       '-4': '已找到 session.db，但数据库无法打开；请检查密钥、文件权限或数据库是否损坏',
       '-5': '数据库已经打开，但无法读取数据库结构（schema）',
@@ -423,7 +447,7 @@ export class WcdbCore {
       '-11': '回写会话排序时间失败，事务已回滚',
       '-101': '当前电脑环境异常，请关闭杀毒软件和安全防护后重试；仍然失败请更换电脑',
       '-102': '检测到系统时间回拨，离线运行状态无法验证',
-      '-103': '第三方 WCDB 实现完整性校验失败，请检查该实现是否正确',
+      '-103': 'WCDB 本地解析组件完整性校验失败，请检查安装或自定义组件',
       '-104': '检测到调试或分析环境，组件已拒绝运行',
       '-105': '离线防回拨状态损坏或无法安全保存，请检查当前用户目录权限',
       '-1000': '当前电脑环境异常，请关闭杀毒软件和安全防护后重试；仍然失败请更换电脑',
@@ -437,7 +461,7 @@ export class WcdbCore {
       '-3002': '未找到 session.db 文件，请确认目标应用已登录并且数据目录完整',
       '-3003': '数据库句柄无效，请重试',
       '-3004': '恢复数据库连接失败，请重试',
-      '-2301': '第三方 WCDB 实现无法正常调用，请关闭安全软件并检查该实现是否完整',
+      '-2301': 'WCDB 本地解析组件无法正常调用，请检查安装完整性或关闭拦截软件后重试',
       '-2302': 'WCDB 初始化异常，请重试',
       '-2303': 'WCDB 未能成功初始化',
     }

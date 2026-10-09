@@ -1,5 +1,6 @@
 import { spawn } from 'child_process'
 import { chmodSync, existsSync } from 'fs'
+import * as path from 'path'
 
 export interface WeliveRawExportManifest {
   path: string
@@ -125,27 +126,49 @@ const formatDiagnostics = (diagnostics: Record<string, unknown>) => {
   return parts.length > 0 ? `[welive-diagnostics] ${parts.join(' ')}` : ''
 }
 
-/**
- * WeLive 是用户自备的外部批量导出引擎（第三方可插拔实现），不再随应用内置查找。
- * 仅认调用方显式传入的 welivePath。
- */
-export function resolveWeliveExecutable(_resourcesPath: string, _appPath?: string): string | null {
-  return null
+function welivePlatformDir(): string {
+  if (process.platform === 'win32') return 'win32'
+  if (process.platform === 'darwin') return 'macos'
+  return 'linux'
+}
+
+function weliveArchDir(): string {
+  return process.arch === 'arm64' ? 'arm64' : 'x64'
+}
+
+function weliveExecutableName(): string {
+  return process.platform === 'win32' ? 'welive.exe' : 'welive'
+}
+
+export function resolveWeliveExecutable(resourcesPath: string, appPath?: string): string | null {
+  const platform = welivePlatformDir()
+  const arch = weliveArchDir()
+  const executable = weliveExecutableName()
+  const candidates = [
+    path.join(resourcesPath, 'welive', platform, arch, executable),
+    appPath ? path.join(appPath, 'resources', 'welive', platform, arch, executable) : '',
+    process.resourcesPath ? path.join(process.resourcesPath, 'resources', 'welive', platform, arch, executable) : '',
+    appPath ? path.join(appPath, 'WeLive', 'target', 'release', executable) : '',
+    appPath ? path.join(appPath, 'WeLive', 'target', 'debug', executable) : ''
+  ].filter(Boolean)
+
+  return candidates.find((candidate) => existsSync(candidate)) || null
 }
 
 export async function runWeliveExport(options: RunWeliveExportOptions): Promise<WeliveExportResult> {
-  const exe = options.welivePath && existsSync(options.welivePath) ? options.welivePath : null
+  const configured = options.welivePath && existsSync(options.welivePath) ? options.welivePath : null
+  const exe = configured || resolveWeliveExecutable(options.resourcesPath, options.appPath)
   if (!exe) {
     return {
       success: false,
       successCount: 0,
       failCount: options.request.sessionIds.length,
       failedSessionIds: options.request.sessionIds,
-      failedSessionErrors: Object.fromEntries(options.request.sessionIds.map((id) => [id, '未配置 WeLive 导出引擎，请在设置中指定可执行文件路径'])),
+      failedSessionErrors: Object.fromEntries(options.request.sessionIds.map((id) => [id, '未找到 WeLive 本地导出引擎'])),
       sessionOutputPaths: {},
       rawSessionOutputPaths: {},
       rawExportManifests: {},
-      error: '未配置 WeLive 导出引擎，请在设置中指定可执行文件路径'
+      error: '未找到 WeLive 本地导出引擎'
     }
   }
   if (process.platform !== 'win32') {

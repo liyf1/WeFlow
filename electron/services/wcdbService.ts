@@ -151,9 +151,7 @@ export class WcdbService {
     this.callWorker('setPaths', { resourcesPath, userDataPath }).catch(() => { })
   }
 
-  /**
-   * 设置第三方 WCDB 实现的库文件路径（用户自备，不再内置校验来源）。
-   */
+  /** 设置可选的自定义 WCDB 库路径；留空时使用随包内置库。 */
   setLibPath(libPath: string): void {
     this.libPath = libPath
     this.callWorker('setLibPath', { libPath }).catch(() => { })

@@ -55,7 +55,7 @@ const formatDbKeyFailureMessage = (error?: string, logs?: string[]): string => {
   return `${base}；最近状态：${tailLogs.join(' | ')}`
 }
 
-// 密钥获取工具由用户自备，进度文案不再是固定词表，这里仅做直通展示。
+// 各平台内置密钥组件的进度文案不同，这里直通展示。
 const normalizeDbKeyStatusMessage = (message: string): string => message
 
 const isDbKeyReadyMessage = (message: string): boolean => {

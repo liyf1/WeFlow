@@ -1,10 +1,10 @@
 # 第三方可插拔组件接口说明
 
-WeFlow 已内置 Windows、macOS 和 Linux 的数据库/图片密钥获取组件。以下其他四类本地数据处理能力
-仍由用户在「设置 -> 数据库 -> 第三方组件路径」中自行配置可执行文件/动态库/插件路径，
-应用只按下述协议与其交互，不对其来源、签名或实现方式做任何校验。
+WeFlow 已内置 Windows、macOS 和 Linux 的数据库读取、密钥获取与媒体解密组件。
+聊天记录批量导出默认使用内置 WCDB 本地解析，不依赖云端或 WeLive。以下路径仅用于高级调试或覆盖内置实现。
 
-留空或指向的文件不存在时，对应功能会直接返回"未配置"错误，不会有任何降级或替代实现。
+自定义路径有效时优先使用该文件；WCDB 与媒体组件会回退到随包实现，
+可选 WeLive 不可用时则回退到 WCDB 消息导出链路。
 
 ## 1. WCDB 实现（`wcdbLibPath`）
 
@@ -12,7 +12,7 @@ WeFlow 已内置 Windows、macOS 和 Linux 的数据库/图片密钥获取组件
 以 C ABI 方式加载，用于读取本地 SQLCipher 数据库并提供会话/消息/联系人/朋友圈等查询。
 
 加载流程（见 `electron/services/wcdbCore.ts` 的 `initialize()`）：
-1. `koffi.load(wcdbLibPath)`。
+1. 优先使用有效的 `wcdbLibPath`，否则按平台/架构加载 `resources/wcdb/` 下的内置库。
 2. 依次尝试绑定下列导出函数；可选符号不存在时该功能会被跳过（返回 `null`），不影响其余功能。
    `wcdb_init`、`wcdb_shutdown`、`wcdb_open_account`、`wcdb_close_account` 和
    `wcdb_free_string` 必须存在，用于初始化、账号生命周期和返回字符串的释放；
@@ -149,10 +149,12 @@ JSON 载荷/出参的字段命名可参照 `electron/services/wcdbCore.ts` 里
 
 参照原始 `Wedecrypt/` Rust 工程（`napi`/`napi-derive` + `cdylib`）实现即可复用其思路。
 
-## 3. WeLive 批量导出引擎（`welivePath`）
+## 3. 可选 WeLive 批量导出加速器（`welivePath`）
 
 一个可执行文件，由 `electron/services/weliveBridge.ts` 的 `runWeliveExport()` 拉起，
-用于会话的批量原始导出（文本 + 媒体）。协议：
+用于会话的批量原始导出（文本 + 媒体）。它不是必需组件：路径留空、
+进程无法启动、版本过期或任何会话原始数据不完整时，整批会话自动回退到 WCDB 本地解析，
+避免在混合解析模式下遗漏媒体附件。协议：
 
 - 请求：完整的 `WeliveExportRequest`（见 `weliveBridge.ts` 内类型定义，包含账号信息、
   `sessionIds`、输出目录、媒体类型等）序列化为 JSON，写入子进程 stdin 后关闭。

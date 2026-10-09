@@ -1345,19 +1345,19 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
     }
   }
 
-  const handleSelectWcdbLibPath = () => handleSelectThirdPartyPath('选择第三方 WCDB 实现库文件', async (path) => {
+  const handleSelectWcdbLibPath = () => handleSelectThirdPartyPath('选择自定义 WCDB 库文件', async (path) => {
     setWcdbLibPath(path)
     await configService.setWcdbLibPath(path)
   })
-  const handleSelectImageNativeAddonPath = () => handleSelectThirdPartyPath('选择第三方媒体解密插件', async (path) => {
+  const handleSelectImageNativeAddonPath = () => handleSelectThirdPartyPath('选择自定义媒体解密插件', async (path) => {
     setImageNativeAddonPath(path)
     await configService.setImageNativeAddonPath(path)
   })
-  const handleSelectWelivePath = () => handleSelectThirdPartyPath('选择第三方 WeLive 导出引擎', async (path) => {
+  const handleSelectWelivePath = () => handleSelectThirdPartyPath('选择自定义 WeLive 导出引擎', async (path) => {
     setWelivePath(path)
     await configService.setWelivePath(path)
   })
-  const handleSelectImgHelperLibPath = () => handleSelectThirdPartyPath('选择第三方原图下载组件', async (path) => {
+  const handleSelectImgHelperLibPath = () => handleSelectThirdPartyPath('选择自定义原图下载组件', async (path) => {
     setImgHelperLibPath(path)
     await configService.setImgHelperLibPath(path)
   })
@@ -2650,18 +2650,18 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       <div className="divider" />
 
       <div className="form-group">
-        <label>第三方组件路径</label>
+        <label>本地组件路径 <span className="optional">(可选覆盖)</span></label>
         <span className="form-hint">
-          数据库与图片密钥由 WeFlow 内置组件按当前系统自动获取；下列其他数据处理组件仍可按需指定第三方实现路径
+          默认自动使用安装包内置组件，无需手工配置。仅在调试或使用自定义版本时填写下列路径
         </span>
       </div>
 
       <div className="form-group">
-        <label>WCDB 实现路径</label>
-        <span className="form-hint">用于读取目标应用数据库的动态库文件（.dll/.so/.dylib）</span>
+        <label>WCDB 自定义路径</label>
+        <span className="form-hint">留空时自动使用内置的数据库解析库（.dll/.so/.dylib）</span>
         <input
           type="text"
-          placeholder="未配置"
+          placeholder="自动使用内置组件"
           value={wcdbLibPath}
           onChange={(e) => {
             const value = e.target.value
@@ -2673,11 +2673,11 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       </div>
 
       <div className="form-group">
-        <label>媒体解密插件路径</label>
-        <span className="form-hint">用于解密语音/图片/视频的 Node 原生插件（.node）</span>
+        <label>媒体解密插件自定义路径</label>
+        <span className="form-hint">留空时自动使用内置的 Node 原生插件（.node）</span>
         <input
           type="text"
-          placeholder="未配置"
+          placeholder="自动使用内置组件"
           value={imageNativeAddonPath}
           onChange={(e) => {
             const value = e.target.value
@@ -2689,11 +2689,11 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       </div>
 
       <div className="form-group">
-        <label>WeLive 导出引擎路径</label>
-        <span className="form-hint">用于批量原始导出的外部可执行文件</span>
+        <label>WeLive 导出加速器 <span className="optional">(可选)</span></label>
+        <span className="form-hint">留空时直接使用内置 WCDB 本地解析；自定义引擎不可用时也会自动回退</span>
         <input
           type="text"
-          placeholder="未配置"
+          placeholder="可选：本地 WeLive 可执行文件"
           value={welivePath}
           onChange={(e) => {
             const value = e.target.value
@@ -5978,7 +5978,7 @@ JSON 输出格式：
             <div className="anti-revoke-hero-main">
               <span className="updates-chip" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)', width: 'fit-content' }}>测试功能 (Test)</span>
               <h2 style={{ marginTop: '8px' }}>自动下载原图</h2>
-              <p>强制目标应用在接收图片时下载高清原图。建议仅在必要会话中开启以节省流量和空间。依赖第三方组件，需在下方配置路径和目标进程名。</p>
+              <p>强制目标应用在接收图片时下载高清原图。建议仅在必要会话中开启以节省流量和空间。Windows x64 默认使用内置组件和 Weixin.exe 进程。</p>
             </div>
             <div className="anti-revoke-metrics">
               <div className={`anti-revoke-metric ${isHooked ? 'is-installed' : 'is-pending'}`}>
@@ -5996,10 +5996,10 @@ JSON 输出格式：
 
           <div className="anti-revoke-control-card">
             <div className="form-group">
-              <label>第三方原图下载组件路径</label>
+              <label>原图下载组件自定义路径 <span className="optional">(可选)</span></label>
               <input
                 type="text"
-                placeholder="未配置"
+                placeholder="自动使用内置组件"
                 value={imgHelperLibPath}
                 onChange={(e) => {
                   const value = e.target.value
@@ -6010,11 +6010,11 @@ JSON 输出格式：
               <button className="btn btn-secondary btn-sm" onClick={handleSelectImgHelperLibPath}><FolderOpen size={14} /> 浏览选择</button>
             </div>
             <div className="form-group">
-              <label>目标进程名</label>
-              <span className="form-hint">例如: App.exe</span>
+              <label>目标进程名 <span className="optional">(可选)</span></label>
+              <span className="form-hint">留空时使用 Weixin.exe</span>
               <input
                 type="text"
-                placeholder="未配置"
+                placeholder="Weixin.exe"
                 value={imgHelperProcessName}
                 onChange={(e) => {
                   const value = e.target.value
@@ -6392,8 +6392,6 @@ JSON 输出格式：
 }
 
 export default SettingsPage
-
-
 
 
 

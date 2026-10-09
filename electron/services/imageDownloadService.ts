@@ -1,5 +1,7 @@
+import { app } from 'electron'
 import { existsSync } from 'fs'
 import { execFile } from 'child_process'
+import { join } from 'path'
 import { promisify } from 'util'
 import { ConfigService } from './config'
 
@@ -37,8 +39,8 @@ export class ImageDownloadService {
     if (process.platform !== 'win32' || process.arch !== 'x64') return false
 
     try {
-      const dllPath = String(this.configService.get('imgHelperLibPath') || '').trim()
-      if (!dllPath || !existsSync(dllPath)) return false
+      const dllPath = this.getDllPath()
+      if (!existsSync(dllPath)) return false
 
       this.koffi = require('koffi')
       this.lib = this.koffi.load(dllPath)
@@ -55,9 +57,22 @@ export class ImageDownloadService {
     }
   }
 
+  private getDllPath(): string {
+    const configured = String(this.configService.get('imgHelperLibPath') || '').trim()
+    if (configured && existsSync(configured)) return configured
+
+    const candidates = app.isPackaged
+      ? [join(process.resourcesPath, 'resources', 'image', 'win32', 'x64', 'img_helper.dll')]
+      : [
+          join(process.cwd(), 'resources', 'image', 'win32', 'x64', 'img_helper.dll'),
+          join(app.getAppPath(), 'resources', 'image', 'win32', 'x64', 'img_helper.dll')
+        ]
+
+    return candidates.find((candidate) => existsSync(candidate)) || candidates[0]
+  }
+
   private async findTargetProcessPid(): Promise<number | null> {
-    const processName = String(this.configService.get('imgHelperProcessName') || '').trim()
-    if (!processName) return null
+    const processName = String(this.configService.get('imgHelperProcessName') || '').trim() || 'Weixin.exe'
     try {
       const script = `
       Get-CimInstance Win32_Process -Filter "Name = '${processName.replace(/'/g, "''")}'" |
@@ -83,11 +98,8 @@ export class ImageDownloadService {
   }
 
   async startAutoDownload(whitelist: string[] | string = []): Promise<{ success: boolean; error?: string }> {
-    if (!String(this.configService.get('imgHelperProcessName') || '').trim()) {
-      return { success: false, error: '未配置目标进程名，请在设置中指定' }
-    }
     if (!await this.ensureInitialized()) {
-      return { success: false, error: '未配置或未找到核心组件（imgHelperLibPath）' }
+      return { success: false, error: '原图下载组件初始化失败，请检查安装包是否完整' }
     }
 
     if (this.isHooked) {

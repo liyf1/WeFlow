@@ -19,7 +19,7 @@
 </p>
 
 > [!TIP]
-> 需要配套的第三方可插拔组件（本项目依赖自定义的原生解密组件，需自行设计，见 [docs/third-party-components.md](docs/third-party-components.md)）
+> 数据库读取、密钥获取和媒体解密组件已随安装包内置，聊天记录批量导出默认走本地 WCDB，无需云端或手工配置。高级用户仍可按 [可插拔组件说明](docs/third-party-components.md) 覆盖默认实现。
 
 
 ## 主要功能

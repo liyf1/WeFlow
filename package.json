@@ -38,11 +38,13 @@
     "@hicccc77/electron-liquid-glass": "^0.4.0",
     "@huggingface/transformers": "^4.3.1",
     "@lobehub/icons": "^5.10.1",
+    "@lobehub/ui": "^5.20.0",
     "@rc-component/qrcode": "^2.0.0",
     "@tailwindcss/vite": "^4.3.2",
     "@vscode/sudo-prompt": "^9.3.2",
     "ai": "^7.0.22",
     "ansi-to-react": "^6.1.6",
+    "antd": "^6.5.0",
     "better-sqlite3": "^13.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -136,6 +138,14 @@
       "icon": "resources/icons/macos/icon.icns",
       "extraResources": [
         {
+          "from": "resources/wcdb/macos/universal",
+          "to": "resources/wcdb/macos/universal"
+        },
+        {
+          "from": "resources/wedecrypt/macos/${arch}",
+          "to": "resources/wedecrypt/macos/${arch}"
+        },
+        {
           "from": "resources/key/macos/universal",
           "to": "resources/key/macos/universal"
         }
@@ -166,8 +176,23 @@
       ],
       "extraResources": [
         {
+          "from": "resources/wcdb/win32/${arch}",
+          "to": "resources/wcdb/win32/${arch}"
+        },
+        {
+          "from": "resources/wedecrypt/win32/${arch}",
+          "to": "resources/wedecrypt/win32/${arch}"
+        },
+        {
           "from": "resources/key/win32",
           "to": "resources/key/win32",
+          "filter": [
+            "${arch}/**/*"
+          ]
+        },
+        {
+          "from": "resources/image/win32",
+          "to": "resources/image/win32",
           "filter": [
             "${arch}/**/*"
           ]
@@ -190,6 +215,14 @@
         }
       ],
       "extraResources": [
+        {
+          "from": "resources/wcdb/linux/${arch}",
+          "to": "resources/wcdb/linux/${arch}"
+        },
+        {
+          "from": "resources/wedecrypt/linux/${arch}",
+          "to": "resources/wedecrypt/linux/${arch}"
+        },
         {
           "from": "resources/key/linux",
           "to": "resources/key/linux",
@@ -226,7 +259,11 @@
         "to": "resources/",
         "filter": [
           "**/*",
-          "!key/**/*"
+          "!key/**/*",
+          "!welive/**/*",
+          "!wcdb/**/*",
+          "!wedecrypt/**/*",
+          "!image/**/*"
         ]
       },
       {
@@ -246,6 +283,7 @@
       "dist/**/*",
       "dist-electron/**/*"
     ],
+    "afterPack": "scripts/after-pack.cjs",
     "asarUnpack": [
       "node_modules/silk-wasm/**/*",
       "node_modules/sherpa-onnx-node/**/*",
@@ -259,7 +297,8 @@
       "node_modules/onnxruntime-node/**/*",
       "node_modules/onnxruntime-common/**/*",
       "node_modules/sharp/**/*",
-      "node_modules/@img/**/*"
+      "node_modules/@img/**/*",
+      "resources/wedecrypt/**/*.node"
     ],
     "icon": "resources/icons/macos/icon.icns"
   },

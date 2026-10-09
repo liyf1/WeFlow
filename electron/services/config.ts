@@ -42,7 +42,7 @@ interface ConfigSchema {
   imageAesKey: string
   accountConfigs: Record<string, { decryptKey?: string; imageXorKey?: number; imageAesKey?: string; updatedAt?: number }>
   exportPath?: string;
-  // 第三方可插拔组件路径（用户自备实现，均不内置校验来源）
+  // 可选的本地组件覆盖路径（留空时使用随包内置实现）
   wcdbLibPath?: string
   keyProviderPath?: string
   imageNativeAddonPath?: string
@@ -1205,4 +1205,3 @@ export class ConfigService {
     this.unlockPassword = null
   }
 }
-
