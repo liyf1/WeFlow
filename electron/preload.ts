@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getConfig: () => ipcRenderer.invoke('semantic:getConfig'),
     setConfig: (patch: Record<string, unknown>) => ipcRenderer.invoke('semantic:setConfig', patch),
     getStatus: () => ipcRenderer.invoke('semantic:getStatus'),
+    getLocations: () => ipcRenderer.invoke('semantic:getLocations'),
     search: (request: Record<string, unknown>) => ipcRenderer.invoke('semantic:search', request),
     sync: () => ipcRenderer.invoke('semantic:sync'),
     pause: () => ipcRenderer.invoke('semantic:pause'),

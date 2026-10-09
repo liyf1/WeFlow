@@ -4001,6 +4001,7 @@ function registerIpcHandlers() {
   ipcMain.handle('semantic:getConfig', async () => semanticIndexService.getConfig())
   ipcMain.handle('semantic:setConfig', async (_, patch: Record<string, unknown>) => semanticIndexService.setConfig(patch || {}))
   ipcMain.handle('semantic:getStatus', async () => semanticIndexService.getStatus())
+  ipcMain.handle('semantic:getLocations', async () => semanticIndexService.getLocations())
   ipcMain.handle('semantic:search', async (_, request: { query: string; sessionIds?: string[]; speakers?: string[]; beginTs?: number; endTs?: number; includeGroups?: boolean; topK?: number }) => {
     return semanticIndexService.search(request)
   })

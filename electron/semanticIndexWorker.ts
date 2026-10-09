@@ -16,7 +16,9 @@ import type { SemanticChunk, SemanticEmbeddingMode, SemanticSearchRequest } from
  */
 
 interface WorkerInit {
-  userDataPath: string
+  indexDir: string
+  modelDir: string
+  bundledModelDir?: string
   accountId: string
   mode: SemanticEmbeddingMode
   remoteHost?: string
@@ -29,7 +31,8 @@ const port: MessagePort = parentPort
 
 const embedder = new LocalEmbedder({
   mode: init.mode,
-  userDataPath: init.userDataPath,
+  modelDir: init.modelDir,
+  bundledModelDir: init.bundledModelDir,
   remoteHost: init.remoteHost,
   threads: init.threads,
   onProgress: (info) => port.postMessage({ event: 'modelProgress', data: info }),
@@ -40,7 +43,7 @@ let store: SemanticIndexStore | null = null
 
 function openStore(): SemanticIndexStore {
   if (store) return store
-  const path = getSemanticIndexPath(init.userDataPath, init.accountId)
+  const path = getSemanticIndexPath(init.indexDir, init.accountId)
   const opened = SemanticIndexStore.open(path, { modelId: embedder.modelId, dimensions: embedder.dimensions })
   if (opened.needsRebuild) {
     // 嵌入模型或维度变化：旧向量不可复用，整库重建
@@ -101,7 +104,7 @@ const handlers: Record<string, (params: any) => Promise<unknown> | unknown> = {
 
   /** 删除整个索引文件（用户手动重建或删除账号时） */
   destroy() {
-    const path = getSemanticIndexPath(init.userDataPath, init.accountId)
+    const path = getSemanticIndexPath(init.indexDir, init.accountId)
     store?.close()
     store = null
     for (const suffix of ['', '-wal', '-shm']) {

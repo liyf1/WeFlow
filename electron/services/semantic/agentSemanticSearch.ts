@@ -3,9 +3,9 @@ import { app } from 'electron'
 import { ConfigService } from '../config'
 import { LocalEmbedder } from './embedder'
 import { SemanticIndexStore } from './indexStore'
-import { getSemanticIndexPath } from './paths'
+import { getSemanticIndexPath, resolveSemanticLocations } from './paths'
 import { searchSemanticIndex } from './searchCore'
-import { resolveSemanticSearchConfig, type SemanticSearchRequest, type SemanticSearchResult } from './types'
+import { SEMANTIC_EMBEDDING_MODELS, resolveSemanticSearchConfig, type SemanticSearchRequest, type SemanticSearchResult } from './types'
 
 /**
  * 供 AI agent（运行在 agentRunWorker 中）直接查询语义索引：
@@ -39,17 +39,18 @@ export async function runAgentSemanticSearch(request: SemanticSearchRequest): Pr
   }
   const accountId = configService.getMyAccountIdCleaned()
   if (!accountId) return { success: false, error: '尚未选择微信账号' }
-  const root = userDataPath()
-  const path = getSemanticIndexPath(root, accountId)
+  const locations = resolveSemanticLocations(config, userDataPath(), SEMANTIC_EMBEDDING_MODELS[config.embeddingMode].modelId)
+  const path = getSemanticIndexPath(locations.indexDir, accountId)
   if (!existsSync(path)) {
     return { success: false, error: '当前账号的语义索引尚未建立。请改用 search_raw_messages 做字面搜索。' }
   }
-  const key = `${path}|${config.embeddingMode}`
+  const key = `${path}|${config.embeddingMode}|${locations.modelDir}`
   if (!cached || cached.key !== key) {
     cached?.store.close()
     const embedder = new LocalEmbedder({
       mode: config.embeddingMode,
-      userDataPath: root,
+      modelDir: locations.modelDir,
+      bundledModelDir: locations.bundledModelDir,
       remoteHost: config.modelRemoteHost,
       threads: 2,
     })

@@ -1,6 +1,7 @@
 import type { ChatSession, Message, Contact, ContactInfo, ChatRecordItem } from './models'
 import type {
   SemanticIndexStatus,
+  SemanticLocations,
   SemanticSearchConfig,
   SemanticSearchRequest,
   SemanticSearchResult,
@@ -490,6 +491,7 @@ export interface ElectronAPI {
     getConfig: () => Promise<SemanticSearchConfig>
     setConfig: (patch: Partial<SemanticSearchConfig>) => Promise<SemanticSearchConfig>
     getStatus: () => Promise<SemanticIndexStatus>
+    getLocations: () => Promise<SemanticLocations>
     search: (request: SemanticSearchRequest) => Promise<SemanticSearchResult>
     sync: () => Promise<SemanticIndexStatus>
     pause: () => Promise<SemanticIndexStatus>

@@ -6,6 +6,7 @@ import { chunkMessages, SemanticChunker } from '../electron/services/semantic/ch
 import { SemanticIndexStore } from '../electron/services/semantic/indexStore'
 import { searchSemanticIndex, fuseRankings } from '../electron/services/semantic/searchCore'
 import { tokenizeForIndex, buildFtsQuery } from '../electron/services/semantic/tokenize'
+import { decodeIniBuffer, parseInstallerIni, resolveSemanticLocations, getSemanticIndexPath } from '../electron/services/semantic/paths'
 import type { SemanticSourceMessage } from '../electron/services/semantic/types'
 
 let passed = 0
@@ -77,6 +78,25 @@ const msg = (id: number, t: number, text: string, isSend = 0, sender?: string): 
     assert.ok(tokens.includes('公司'), tokens.join('|'))
     const q = buildFtsQuery('装修预算多少')
     assert.match(q, /"装修"/)
+  })
+
+  await test('解析安装器写入的 UTF-16 INI（含中文路径）', () => {
+    const text = '[paths]\r\nindexDir=D:\\微信数据\\索引\r\nmodelDir=\r\n'
+    const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(text, 'utf16le')])
+    const parsed = parseInstallerIni(decodeIniBuffer(utf16))
+    assert.equal(parsed.indexDir, 'D:\\微信数据\\索引')
+    assert.equal(parsed.modelDir, '')
+    assert.equal(parseInstallerIni(decodeIniBuffer(Buffer.from(text, 'utf8'))).hash, parsed.hash)
+    assert.notEqual(parseInstallerIni('[paths]\nindexDir=E:\\x').hash, parsed.hash)
+  })
+
+  await test('存储位置：留空用默认目录，自定义目录优先', () => {
+    const defaults = resolveSemanticLocations({ indexDir: '', modelDir: '' }, '/data/weflow')
+    assert.equal(defaults.indexDir, join('/data/weflow', 'semantic-index'))
+    assert.equal(defaults.modelDir, join('/data/weflow', 'semantic-models'))
+    const custom = resolveSemanticLocations({ indexDir: '/mnt/idx', modelDir: '/mnt/models' }, '/data/weflow')
+    assert.equal(getSemanticIndexPath(custom.indexDir, 'wxid_a/b'), join('/mnt/idx', 'wxid_a_b.db'))
+    assert.equal(custom.modelDir, '/mnt/models')
   })
 
   await test('RRF 融合：两路都命中的排在前面', () => {

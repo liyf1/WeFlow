@@ -5,7 +5,14 @@ import { ConfigService } from './config'
 import { chatService, type ChatSession } from './chatService'
 import { SemanticChunker } from './semantic/chunker'
 import {
+  getSemanticIndexPath,
+  readInstallerSemanticPaths,
+  resolveSemanticLocations,
+} from './semantic/paths'
+import {
+  SEMANTIC_EMBEDDING_MODELS,
   resolveSemanticSearchConfig,
+  type SemanticLocations,
   type SemanticChunk,
   type SemanticIndexStatus,
   type SemanticSearchConfig,
@@ -37,8 +44,8 @@ class SemanticWorkerClient {
   private closed = false
 
   constructor(
-    readonly accountId: string,
-    readonly mode: SemanticSearchConfig['embeddingMode'],
+    /** 账号、模型与目录共同决定一个 worker；任一变化都需要重启 */
+    readonly key: string,
     workerData: Record<string, unknown>,
     onEvent: (event: WorkerEvent) => void,
   ) {
@@ -119,10 +126,46 @@ class SemanticIndexService {
     return { ...this.status }
   }
 
+  /** 当前生效的索引目录、模型目录与当前账号的索引文件 */
+  getLocations(): SemanticLocations {
+    const config = this.getConfig()
+    const locations = resolveSemanticLocations(
+      config,
+      app.getPath('userData'),
+      SEMANTIC_EMBEDDING_MODELS[config.embeddingMode].modelId,
+    )
+    const accountId = this.currentAccountId()
+    return {
+      ...locations,
+      indexFile: accountId ? getSemanticIndexPath(locations.indexDir, accountId) : undefined,
+    }
+  }
+
   start(): void {
     if (this.started) return
     this.started = true
+    this.importInstallerPaths()
     void this.applyConfig()
+  }
+
+  /**
+   * 安装器的“语义检索存储位置”页面会写入 <安装目录>/semantic.ini。
+   * 内容变化（首次安装或重新选择目录）时导入一次；之后以应用内设置为准，静默升级不会覆盖。
+   */
+  private importInstallerPaths(): void {
+    if (!app.isPackaged) return
+    const installer = readInstallerSemanticPaths()
+    if (!installer) return
+    const config = this.getConfig()
+    if (config.installerPathsHash === installer.hash) return
+    const next = resolveSemanticSearchConfig({
+      ...config,
+      indexDir: installer.indexDir,
+      modelDir: installer.modelDir,
+      installerPathsHash: installer.hash,
+    })
+    this.configService.set('semanticSearch' as any, next as any)
+    console.info('[SemanticSearch] 已导入安装器设置的存储位置', { indexDir: next.indexDir, modelDir: next.modelDir })
   }
 
   async stop(): Promise<void> {
@@ -147,6 +190,9 @@ class SemanticIndexService {
       this.updateStatus({ phase: 'idle' })
       return
     }
+    // 账号、模型或目录可能已变化：先停下正在进行的索引，再按新设置继续
+    this.abortController?.abort()
+    await this.syncPromise?.catch(() => undefined)
     this.intervalTimer = setInterval(() => this.requestSync(), config.incrementalIntervalMinutes * 60_000)
     this.intervalTimer.unref?.()
     this.requestSync()
@@ -235,15 +281,20 @@ class SemanticIndexService {
     const accountId = this.currentAccountId()
     if (!accountId) throw new Error('尚未选择微信账号')
     const config = this.getConfig()
-    if (this.client && this.client.alive && this.client.accountId === accountId && this.client.mode === config.embeddingMode) {
+    const locations = this.getLocations()
+    const key = [accountId, config.embeddingMode, locations.indexDir, locations.modelDir, config.modelRemoteHost].join('|')
+    if (this.client && this.client.alive && this.client.key === key) {
       return this.client
     }
-    // 账号或模型切换：关闭旧 worker，按新账号打开独立索引
+    // 账号、模型或目录变化：关闭旧 worker，按新设置打开对应的独立索引
     const previous = this.client
     this.client = null
     await previous?.terminate()
-    this.client = new SemanticWorkerClient(accountId, config.embeddingMode, {
-      userDataPath: app.getPath('userData'),
+    this.status.modelReady = false
+    this.client = new SemanticWorkerClient(key, {
+      indexDir: locations.indexDir,
+      modelDir: locations.modelDir,
+      bundledModelDir: locations.bundledModelDir,
       accountId,
       mode: config.embeddingMode,
       remoteHost: config.modelRemoteHost,

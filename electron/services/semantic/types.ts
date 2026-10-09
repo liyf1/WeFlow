@@ -89,8 +89,14 @@ export const SEMANTIC_EMBEDDING_MODELS: Record<SemanticEmbeddingMode, SemanticEm
 export interface SemanticSearchConfig {
   enabled: boolean
   embeddingMode: SemanticEmbeddingMode
-  /** 模型下载源，默认使用 ModelScope 的 Hugging Face 镜像 */
+  /** 模型下载源（Hugging Face 或其镜像） */
   modelRemoteHost: string
+  /** 索引目录，空字符串表示默认的 <userData>/semantic-index */
+  indexDir: string
+  /** 模型目录，空字符串表示默认的 <userData>/semantic-models */
+  modelDir: string
+  /** 已导入的安装器目录设置的指纹，用于判断安装器是否写入了新设置 */
+  installerPathsHash: string
   /** 首次全量索引时，嵌入线程使用的 CPU 线程数，0 表示自动取一半核心 */
   threads: number
   /** 是否索引群聊 */
@@ -104,6 +110,9 @@ export const DEFAULT_SEMANTIC_SEARCH_CONFIG: SemanticSearchConfig = {
   enabled: false,
   embeddingMode: 'standard',
   modelRemoteHost: 'https://hf-mirror.com/',
+  indexDir: '',
+  modelDir: '',
+  installerPathsHash: '',
   threads: 0,
   includeGroups: true,
   incrementalIntervalMinutes: 5,
@@ -124,6 +133,9 @@ export function resolveSemanticSearchConfig(raw: unknown): SemanticSearchConfig 
     embeddingMode: mode,
     modelRemoteHost: String(value.modelRemoteHost || DEFAULT_SEMANTIC_SEARCH_CONFIG.modelRemoteHost).trim()
       || DEFAULT_SEMANTIC_SEARCH_CONFIG.modelRemoteHost,
+    indexDir: String(value.indexDir || '').trim(),
+    modelDir: String(value.modelDir || '').trim(),
+    installerPathsHash: String(value.installerPathsHash || '').trim(),
     threads: num(value.threads, 0, 0, 64),
     includeGroups: value.includeGroups !== false,
     incrementalIntervalMinutes: num(value.incrementalIntervalMinutes, 5, 1, 24 * 60),
@@ -170,6 +182,16 @@ export interface SemanticSearchResult {
 }
 
 export type SemanticIndexPhase = 'idle' | 'preparing-model' | 'indexing' | 'paused' | 'error'
+
+/** 实际生效的存储位置 */
+export interface SemanticLocations {
+  indexDir: string
+  modelDir: string
+  /** 安装包内置的模型目录（存在当前模型时才有值） */
+  bundledModelDir?: string
+  /** 当前账号的索引文件 */
+  indexFile?: string
+}
 
 export interface SemanticIndexStatus {
   enabled: boolean

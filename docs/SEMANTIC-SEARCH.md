@@ -6,12 +6,35 @@
 ## 使用
 
 1. 侧边栏打开「语义检索」，勾选「开启语义检索」。
-2. 首次开启会下载嵌入模型（默认 bge-small-zh，约百 MB），然后在后台按最近会话优先建立索引，可随时暂停。
+2. 首次开启会加载嵌入模型（默认 bge-small-zh；安装包已内置时无需下载，否则约 30 MB），然后在后台按最近会话优先建立索引，可随时暂停。
 3. 索引完成后，在页面搜索框输入描述即可；点击结果跳回原对话。
 4. AI 页面中，agent 会在需要时调用 `semantic_search_messages` 工具。
 
-每个微信账号一个独立索引文件：`<userData>/semantic-index/<accountId>.db`，切换账号会自动切换。
+每个微信账号一个独立索引文件：`<索引目录>/<accountId>.db`，切换账号会自动切换。
 新消息会在数据库变化后约 30 秒，或每 5 分钟自动增量索引。
+
+## 安装包与存储位置
+
+- 安装时有「语义检索存储位置」页面，可分别选择**索引目录**和**模型目录**（留空用默认的用户数据目录）。选择写入安装目录下的 `semantic.ini`，应用首次启动时导入；之后以应用内设置为准，自动升级不会覆盖。
+- 安装后也可在「语义检索」页面更改目录或恢复默认。更改索引目录会在新目录重建索引，旧文件不会自动删除。
+- 安装包默认内置标准模型（bge-small-zh），装好即可离线使用。
+- 离线放置模型：把模型文件放到 `<模型目录>/<模型ID>/` 下，例如 `Xenova/bge-small-zh-v1.5/config.json`、`tokenizer.json`、`tokenizer_config.json`、`onnx/model_quantized.onnx`。可用 `node scripts/download-semantic-model.cjs --out <目录>` 在有网的机器上下载。
+
+模型查找顺序：模型目录 → 安装包内置模型 → 从下载源下载到模型目录。
+
+## 构建 Windows 安装包
+
+推送到 `feat/**` 分支会触发 GitHub Actions「Build Windows Installer」，也可以在 Actions 页面手动运行（可选择内置高精度模型）。
+安装包在该次运行的 Artifacts（WeFlow-windows-x64）中下载。
+
+本地构建：
+
+```bash
+npm ci   # 或 npm install --force
+node scripts/download-semantic-model.cjs   # 可选：内置标准模型
+npx vite build
+npx electron-builder --win nsis --x64 --publish never
+```
 
 ## 设置项（config 键 `semanticSearch`）
 
@@ -19,7 +42,9 @@
 | --- | --- | --- |
 | `enabled` | `false` | 总开关 |
 | `embeddingMode` | `standard` | `standard` = bge-small-zh（快）；`precise` = bge-m3（准，慢）。切换后会自动重建索引 |
-| `modelRemoteHost` | `https://hf-mirror.com/` | 模型下载源，无法联网时可把模型放到 `<userData>/semantic-models/` |
+| `modelRemoteHost` | `https://hf-mirror.com/` | 模型下载源 |
+| `indexDir` | 空 | 索引目录，空 = `<userData>/semantic-index` |
+| `modelDir` | 空 | 模型目录，空 = `<userData>/semantic-models` |
 | `includeGroups` | `true` | 是否索引群聊 |
 | `threads` | `0` | 嵌入线程数，0 = CPU 核心数的一半 |
 | `incrementalIntervalMinutes` | `5` | 定时增量检查间隔 |

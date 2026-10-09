@@ -1,16 +1,19 @@
 import { mkdirSync } from 'fs'
-import { join } from 'path'
 import { cpus } from 'os'
 import { SEMANTIC_EMBEDDING_MODELS, type SemanticEmbeddingMode, type SemanticEmbeddingModelSpec } from './types'
 
 /**
  * 本地嵌入：transformers.js（底层 onnxruntime-node）在 CPU 上运行 bge 系列模型。
- * 模型首次使用时下载到 <userData>/semantic-models，之后完全离线。
+ * 查找顺序：模型目录（下载缓存）→ 安装包内置模型 → 从 remoteHost 下载到模型目录。
+ * 模型目录结构：<modelDir>/<modelId>/config.json、tokenizer.json、onnx/model_quantized.onnx …
  */
 
 export interface EmbedderOptions {
   mode: SemanticEmbeddingMode
-  userDataPath: string
+  /** 模型目录（可写，下载的模型缓存在这里） */
+  modelDir: string
+  /** 安装包内置模型目录（只读，可选） */
+  bundledModelDir?: string
   remoteHost?: string
   threads?: number
   onProgress?: (progress: { status: string; file?: string; progress?: number }) => void
@@ -39,10 +42,6 @@ async function loadTransformers(): Promise<TransformersModule> {
       throw requireError
     }
   }
-}
-
-export function getModelCacheDir(userDataPath: string): string {
-  return join(userDataPath, 'semantic-models')
 }
 
 export class LocalEmbedder {
@@ -76,11 +75,13 @@ export class LocalEmbedder {
 
   private async load(): Promise<FeatureExtractor> {
     const transformers = await loadTransformers()
-    const cacheDir = getModelCacheDir(this.options.userDataPath)
+    const cacheDir = this.options.modelDir
     mkdirSync(cacheDir, { recursive: true })
     const env = transformers.env
+    env.useFSCache = true
     env.cacheDir = cacheDir
-    env.localModelPath = cacheDir
+    // 先查缓存（模型目录），再查本地模型路径（内置模型），最后才联网下载
+    env.localModelPath = this.options.bundledModelDir || cacheDir
     env.allowLocalModels = true
     env.allowRemoteModels = true
     if (this.options.remoteHost) {

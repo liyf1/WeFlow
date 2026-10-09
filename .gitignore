@@ -85,3 +85,6 @@ weflow-web-offical
 patches/
 mmtls/
 .tmp/dist-test/
+
+# 打包时下载的内置嵌入模型
+resources/models/

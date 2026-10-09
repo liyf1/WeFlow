@@ -231,3 +231,47 @@
     transform: rotate(360deg);
   }
 }
+
+.semantic-locations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 50%, transparent);
+}
+
+.semantic-location {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+
+  code {
+    flex: 1 1 240px;
+    min-width: 0;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.semantic-location-label {
+  width: 64px;
+  color: var(--text-secondary);
+}
+
+.semantic-text-input {
+  flex: 1 1 240px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+}

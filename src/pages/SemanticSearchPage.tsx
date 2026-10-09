@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Pause, Play, RefreshCw, Search, Sparkles } from 'lucide-react'
+import { FolderOpen, Loader2, Pause, Play, RefreshCw, RotateCcw, Search, Sparkles } from 'lucide-react'
 import type {
   SemanticIndexStatus,
+  SemanticLocations,
   SemanticSearchConfig,
   SemanticSearchHit,
 } from '../../electron/services/semantic/types'
@@ -42,10 +43,16 @@ export default function SemanticSearchPage() {
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [sessionNames, setSessionNames] = useState<Map<string, string>>(new Map())
+  const [locations, setLocations] = useState<SemanticLocations | null>(null)
+  const [remoteHostDraft, setRemoteHostDraft] = useState('')
 
   useEffect(() => {
-    void api.getConfig().then(setConfig)
+    void api.getConfig().then((value) => {
+      setConfig(value)
+      setRemoteHostDraft(value.modelRemoteHost)
+    })
     void api.getStatus().then(setStatus)
+    void api.getLocations().then(setLocations)
     const off = api.onStatus(setStatus)
     void window.electronAPI.chat.getSessions().then((result) => {
       const map = new Map<string, string>()
@@ -58,7 +65,22 @@ export default function SemanticSearchPage() {
   const updateConfig = useCallback(async (patch: Partial<SemanticSearchConfig>) => {
     const next = await api.setConfig(patch)
     setConfig(next)
+    setLocations(await api.getLocations())
   }, [api])
+
+  const chooseDirectory = useCallback(async (key: 'indexDir' | 'modelDir', title: string) => {
+    const result = await window.electronAPI.dialog.openDirectory({
+      title,
+      defaultPath: key === 'indexDir' ? locations?.indexDir : locations?.modelDir,
+    })
+    const selected = result.canceled ? '' : result.filePaths[0]
+    if (!selected) return
+    const message = key === 'indexDir'
+      ? '索引将改存到新目录，并在新目录中重新建立（旧目录中的索引文件不会删除）。继续吗？'
+      : '模型将从新目录加载；若新目录中没有模型，会重新下载。继续吗？'
+    if (!window.confirm(message)) return
+    await updateConfig({ [key]: selected })
+  }, [locations, updateConfig])
 
   const runSearch = useCallback(async () => {
     const text = query.trim()
@@ -143,6 +165,50 @@ export default function SemanticSearchPage() {
             />
             <span>索引群聊</span>
           </label>
+        </div>
+
+        <div className="semantic-locations">
+          <div className="semantic-location">
+            <span className="semantic-location-label">索引目录</span>
+            <code title={locations?.indexFile}>{locations?.indexDir || '…'}</code>
+            <button type="button" onClick={() => void chooseDirectory('indexDir', '选择索引目录')}><FolderOpen size={14} />更改</button>
+            {config?.indexDir && (
+              <button type="button" title="恢复默认目录" onClick={() => void updateConfig({ indexDir: '' })}><RotateCcw size={14} /></button>
+            )}
+            {locations?.indexDir && (
+              <button type="button" onClick={() => void window.electronAPI.shell.openPath(locations.indexDir)}>打开</button>
+            )}
+          </div>
+          <div className="semantic-location">
+            <span className="semantic-location-label">模型目录</span>
+            <code>{locations?.modelDir || '…'}</code>
+            <button type="button" onClick={() => void chooseDirectory('modelDir', '选择模型目录')}><FolderOpen size={14} />更改</button>
+            {config?.modelDir && (
+              <button type="button" title="恢复默认目录" onClick={() => void updateConfig({ modelDir: '' })}><RotateCcw size={14} /></button>
+            )}
+            {locations?.modelDir && (
+              <button type="button" onClick={() => void window.electronAPI.shell.openPath(locations.modelDir)}>打开</button>
+            )}
+          </div>
+          {locations?.bundledModelDir && (
+            <div className="semantic-muted">已检测到安装包内置模型，无需联网下载。</div>
+          )}
+          <div className="semantic-location">
+            <span className="semantic-location-label">下载源</span>
+            <input
+              className="semantic-text-input"
+              value={remoteHostDraft}
+              onChange={(event) => setRemoteHostDraft(event.target.value)}
+              onBlur={() => {
+                const value = remoteHostDraft.trim()
+                if (value && value !== config?.modelRemoteHost) void updateConfig({ modelRemoteHost: value })
+              }}
+              placeholder="https://hf-mirror.com/"
+            />
+          </div>
+          <div className="semantic-muted">
+            离线使用：把模型文件放到「模型目录/{'<模型ID>'}/」下（如 Xenova/bge-small-zh-v1.5/config.json、tokenizer.json、onnx/model_quantized.onnx）。
+          </div>
         </div>
 
         {config?.enabled && status && (
