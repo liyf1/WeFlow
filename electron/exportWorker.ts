@@ -1,5 +1,10 @@
 import { parentPort, workerData } from 'worker_threads'
-import { runWeliveExport, type WeliveExportEvent, type WeliveRawExportManifest } from './services/weliveBridge'
+import {
+  resolveWeliveExecutable,
+  runWeliveExport,
+  type WeliveExportEvent,
+  type WeliveRawExportManifest
+} from './services/weliveBridge'
 
 interface ExportWorkerConfig {
   mode?: 'sessions' | 'single' | 'contacts'
@@ -148,8 +153,8 @@ if (config.userDataPath) {
 }
 process.env.WEFLOW_PROJECT_NAME = process.env.WEFLOW_PROJECT_NAME || 'WeFlow'
 
-// 消息导出强制走 WeLive 引擎（不提供 legacy 回退开关）；
-// 联系人导出不是消息导出，由 worker 内置流程独立处理。
+// WeLive 是可选的批量导出加速器。未配置、不可用或导出不完整时，
+// 消息导出会自动回退到内置 WCDB 游标解析，不依赖云端服务。
 
 const normalizeImageXorKey = (value: unknown): string | number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
@@ -424,17 +429,30 @@ async function runWeliveEngine() {
     failedSessionErrors[sessionId] = String(error || 'WeLive export failed')
   }
 
+  const configuredWelivePath = String(config.welivePath || '').trim()
+  const resolvedWelivePath = configuredWelivePath && fs.existsSync(configuredWelivePath)
+    ? configuredWelivePath
+    : resolveWeliveExecutable(
+        String(config.resourcesPath || ''),
+        config.resourcesPath ? path.dirname(config.resourcesPath) : __dirname
+      )
+
   // 纯文本导出可以在一个 WeLive 进程中复用账号连接和消息分库缓存。
   // 媒体导出需要每个会话独立的 mediaDir，仍维持单会话进程。
   const WELIVE_TEXT_SESSION_CHUNK_SIZE = 100
   const rawChunkSize = exportMediaEnabled ? 1 : WELIVE_TEXT_SESSION_CHUNK_SIZE
-  for (let chunkStart = 0; chunkStart < sessionIds.length; chunkStart += rawChunkSize) {
+  if (!resolvedWelivePath) {
+    for (const sessionId of sessionIds) {
+      markRawSessionFailed(sessionId, '未配置可用的 WeLive，已回退到内置 WCDB 解析')
+    }
+  }
+  for (let chunkStart = 0; resolvedWelivePath && chunkStart < sessionIds.length; chunkStart += rawChunkSize) {
     const chunkSessionIds = sessionIds.slice(chunkStart, chunkStart + rawChunkSize)
     const firstChunkSessionId = chunkSessionIds[0] || ''
     const result = await runWeliveExport({
       resourcesPath: String(config.resourcesPath || ''),
       appPath: config.resourcesPath ? path.dirname(config.resourcesPath) : __dirname,
-      welivePath: config.welivePath,
+      welivePath: resolvedWelivePath,
       weliveArgsPrefix: Array.isArray(config.weliveArgsPrefix) ? config.weliveArgsPrefix : undefined,
       signal: weliveAbortController.signal,
       request: {
@@ -532,6 +550,15 @@ async function runWeliveEngine() {
         (rawOutputPath ? 'WeLive 未返回该会话的完整性清单' : 'WeLive 未返回该会话的原始导出文件')
       )
     }
+
+    // 任意一个会话失败后整批都会走 WCDB，无需再反复启动已过期或异常的引擎。
+    if (chunkSessionIds.some((sessionId) => failedSessionIdSet.has(sessionId))) {
+      const remainingSessionIds = sessionIds.slice(chunkStart + rawChunkSize)
+      for (const sessionId of remainingSessionIds) {
+        markRawSessionFailed(sessionId, '同批会话已回退到内置 WCDB 解析')
+      }
+      break
+    }
   }
 
   const rawSuccessSessionIds = sessionIds.filter((sessionId) => Boolean(rawSessionOutputPaths[sessionId]))
@@ -549,23 +576,14 @@ async function runWeliveEngine() {
       ].reduce<number>((sum, value) => sum + Number(value || 0), 0)
     }]
   }))
-  if (rawSuccessSessionIds.length === 0) {
-    await cleanupTempDir(rawRoot)
-    return {
-      success: false,
-      successCount: 0,
-      failCount: failedSessionIds.length,
-      failedSessionIds,
-      failedSessionErrors,
-      sessionOutputPaths: {},
-      rawSessionStats,
-      rawFailedSessionIds: [...failedSessionIds],
-      formattedFailedSessionIds: [],
-      error: failedSessionIds.map((id) => `${id}: ${failedSessionErrors[id]}`).join('; ')
-    }
+  // ExportContext 的媒体解析模式是整批切换的。只有整批 WeLive 原始数据都完整时才使用它；
+  // 任何会话失败都让整批回退到 WCDB，避免混合模式下漏掉附件。
+  const useWeliveRaw = sessionIds.length > 0 && rawSuccessSessionIds.length === sessionIds.length
+  if (useWeliveRaw) {
+    exportService.setWeliveRawExportPaths(rawSessionOutputPaths, rawExportManifests)
+  } else {
+    exportService.clearWeliveRawExportPaths()
   }
-
-  exportService.setWeliveRawExportPaths(rawSessionOutputPaths, rawExportManifests)
 
   const taskControl = config.taskId
     ? {
@@ -606,18 +624,9 @@ async function runWeliveEngine() {
       return await exportService.orchestrator.exportSessionToChatLab(sessionId, outputPath, options, queueProgress, taskControl)
     }
 
-    const formatProgress = failedSessionIds.length > 0
-      ? (progress: any) => queueProgress({
-          ...progress,
-          current: Math.min(
-            sessionIds.length,
-            failedSessionIds.length + Math.max(0, Number(progress?.current || 0))
-          ),
-          total: sessionIds.length
-        })
-      : queueProgress
+    const formatProgress = queueProgress
     const formattedResult = await exportService.exportSessions(
-      rawSuccessSessionIds,
+      sessionIds,
       outputDir,
       config.options || { format: 'json' },
       formatProgress,
@@ -626,12 +635,8 @@ async function runWeliveEngine() {
     const formattedFailedSessionIds = Array.isArray(formattedResult.failedSessionIds)
       ? formattedResult.failedSessionIds
       : []
-    const combinedFailedSessionIds = Array.from(new Set([
-      ...failedSessionIds,
-      ...formattedFailedSessionIds
-    ]))
+    const combinedFailedSessionIds = Array.from(new Set(formattedFailedSessionIds))
     const combinedFailedSessionErrors = {
-      ...failedSessionErrors,
       ...(formattedResult.failedSessionErrors || {})
     }
     const successSessionIds = Array.isArray(formattedResult.successSessionIds)

@@ -1,0 +1,88 @@
+name: Build Windows Installer
+
+# 构建 Windows x64 安装包（含语义检索），产物在本次运行的 Artifacts 中下载。
+# - 推送到 feat/** 分支时自动构建
+# - 也可以在 Actions 页面手动运行，并选择是否内置嵌入模型
+
+on:
+  workflow_dispatch:
+    inputs:
+      bundle_model:
+        description: "内置标准嵌入模型（bge-small-zh，约 30 MB，安装后离线可用）"
+        type: boolean
+        default: true
+      bundle_precise_model:
+        description: "同时内置高精度模型（bge-m3，约 600 MB）"
+        type: boolean
+        default: false
+  push:
+    branches:
+      - "feat/**"
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  ELECTRON_BUILDER_BINARIES_MIRROR: https://github.com/electron-userland/electron-builder-binaries/releases/download/
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v5
+
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          # 上游依赖存在 peer 冲突，npm ci 失败时退回 --force
+          npm ci || npm install --force
+
+      - name: Semantic search tests
+        run: npm run test:semantic
+
+      - name: Bundle embedding model
+        if: github.event_name == 'push' || inputs.bundle_model
+        run: node scripts/download-semantic-model.cjs --model standard
+
+      - name: Bundle precise embedding model
+        if: github.event_name == 'workflow_dispatch' && inputs.bundle_precise_model
+        run: node scripts/download-semantic-model.cjs --model precise
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Build frontend and Electron bundles
+        run: npx vite build
+
+      - name: Package installer
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHA=$(git rev-parse --short HEAD)
+          npx electron-builder --win nsis --x64 --publish never \
+            "--config.artifactName=\${productName}-\${version}-semantic-${SHA}-x64-Setup.\${ext}"
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: WeFlow-windows-x64
+          path: release/*Setup.exe
+          if-no-files-found: error
+          retention-days: 14

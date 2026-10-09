@@ -18,7 +18,9 @@ import { groupAnalyticsService } from './services/groupAnalyticsService'
 import { annualReportService } from './services/annualReportService'
 import { exportService, ExportOptions, ExportProgress } from './services/export'
 import { exportTaskControlService } from './services/exportTaskControlService'
-import { KeyProviderService } from './services/keyProviderService'
+import { KeyService } from './services/keyService'
+import { KeyServiceLinux } from './services/keyServiceLinux'
+import { KeyServiceMac } from './services/keyServiceMac'
 import { voiceTranscribeService } from './services/voiceTranscribeService'
 import { videoService } from './services/videoService'
 import { snsService, isVideoUrl } from './services/snsService'
@@ -30,6 +32,7 @@ import { destroyNotificationWindow, registerNotificationHandlers, showNotificati
 import { httpService } from './services/httpService'
 import { messagePushService } from './services/messagePushService'
 import { insightService } from './services/insightService'
+import { semanticIndexService } from './services/semanticIndexService'
 import { insightRecordService } from './services/insightRecordService'
 import { insightProfileService } from './services/insightProfileService'
 import { agentService, type AgentMode, type AgentScope, type AgentModelConfig } from './services/agentService'
@@ -696,7 +699,14 @@ let splashWindow: BrowserWindow | null = null
 const sessionChatWindows = new Map<string, BrowserWindow>()
 const sessionChatWindowSources = new Map<string, 'chat' | 'export'>()
 
-const keyService = new KeyProviderService()
+let keyService: any
+if (process.platform === 'darwin') {
+  keyService = new KeyServiceMac()
+} else if (process.platform === 'linux') {
+  keyService = new KeyServiceLinux()
+} else {
+  keyService = new KeyService()
+}
 
 let mainWindowReady = false
 let shouldShowMain = true
@@ -2165,6 +2175,10 @@ function registerIpcHandlers() {
     }
     void messagePushService.handleConfigChanged(key)
     void insightService.handleConfigChanged(key)
+    if (['dbPath', 'decryptKey', 'myAccountId', 'semanticSearch'].includes(key)) {
+      // 账号或语义检索配置变化：切换到对应账号的独立索引
+      void semanticIndexService.applyConfig()
+    }
     void groupSummaryService.handleConfigChanged(key)
     if (['dbPath', 'decryptKey', 'myAccountId'].includes(key)) {
       snsService.clearMemoryCache()
@@ -3992,6 +4006,22 @@ function registerIpcHandlers() {
     return chatService.searchMessages(keyword, sessionId, limit, offset, beginTimestamp, endTimestamp)
   })
 
+  // 语义检索（本地索引 + 混合召回）
+  ipcMain.handle('semantic:getConfig', async () => semanticIndexService.getConfig())
+  ipcMain.handle('semantic:setConfig', async (_, patch: Record<string, unknown>) => semanticIndexService.setConfig(patch || {}))
+  ipcMain.handle('semantic:getStatus', async () => semanticIndexService.getStatus())
+  ipcMain.handle('semantic:getLocations', async () => semanticIndexService.getLocations())
+  ipcMain.handle('semantic:search', async (_, request: { query: string; sessionIds?: string[]; speakers?: string[]; beginTs?: number; endTs?: number; includeGroups?: boolean; topK?: number }) => {
+    return semanticIndexService.search(request)
+  })
+  ipcMain.handle('semantic:sync', async () => {
+    semanticIndexService.requestSync()
+    return semanticIndexService.getStatus()
+  })
+  ipcMain.handle('semantic:pause', async () => semanticIndexService.pause())
+  ipcMain.handle('semantic:resume', async () => semanticIndexService.resume())
+  ipcMain.handle('semantic:rebuild', async () => semanticIndexService.rebuild())
+
   ipcMain.handle('chat:getMyFootprintStats', async (_, beginTimestamp: number, endTimestamp: number, options?: {
     myAccountId?: string
     privateSessionIds?: string[]
@@ -5569,6 +5599,7 @@ app.whenReady().then(async () => {
   chatService.addDbMonitorListener((type, json) => {
     messagePushService.handleDbMonitorChange(type, json)
     insightService.handleDbMonitorChange(type, json)
+    semanticIndexService.handleDbMonitorChange()
   })
 
   // 提前创建主窗口（隐藏），让渲染进程加载与数据库预热并行进行
@@ -5650,6 +5681,7 @@ app.whenReady().then(async () => {
   messagePushService.start()
   insightService.start()
   groupSummaryService.start()
+  semanticIndexService.start()
   if (configService.get('autoDownloadHighRes')) {
     const whitelistArr = configService.get('autoDownloadWhitelist') || []
     const whitelistStr = (Array.isArray(whitelistArr) && whitelistArr.length > 0)
@@ -5689,6 +5721,7 @@ const shutdownAppServices = async (): Promise<void> => {
     messagePushService.stop()
     insightService.stop()
     groupSummaryService.stop()
+    void semanticIndexService.stop()
     // before-quit 不会等待后续 await，先同步落盘刚生成的语音转写。
     try { chatService.flushTranscriptCache() } catch {}
     // 兜底：5秒后强制退出，防止某个异步任务卡住导致进程残留

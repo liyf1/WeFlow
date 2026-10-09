@@ -223,7 +223,7 @@ export async function setDbPath(path: string): Promise<void> {
   await config.set(CONFIG_KEYS.DB_PATH, path)
 }
 
-// 第三方可插拔组件路径（用户自备实现）
+// 可选的本地组件覆盖路径（留空时使用随包内置实现）
 export async function getWcdbLibPath(): Promise<string> {
   return ((await config.get(CONFIG_KEYS.WCDB_LIB_PATH)) as string) || ''
 }
@@ -2642,4 +2642,3 @@ export async function getNarrationAudioEnabledPreference(): Promise<boolean> {
 export async function setNarrationAudioEnabled(enabled: boolean): Promise<void> {
   await config.set('narrationAudioEnabled', enabled)
 }
-

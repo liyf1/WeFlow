@@ -31,6 +31,8 @@ const isSafeStorageAvailable = (): boolean => {
 const LOCK_PREFIX = 'lock:'  // 密码派生密钥加密（锁定模式）
 
 interface ConfigSchema {
+  /** 语义检索设置（见 services/semantic/types.ts 的 SemanticSearchConfig） */
+  semanticSearch?: Record<string, unknown>
   // 数据库相关
   dbPath: string
   decryptKey: string
@@ -40,7 +42,7 @@ interface ConfigSchema {
   imageAesKey: string
   accountConfigs: Record<string, { decryptKey?: string; imageXorKey?: number; imageAesKey?: string; updatedAt?: number }>
   exportPath?: string;
-  // 第三方可插拔组件路径（用户自备实现，均不内置校验来源）
+  // 可选的本地组件覆盖路径（留空时使用随包内置实现）
   wcdbLibPath?: string
   keyProviderPath?: string
   imageNativeAddonPath?: string
@@ -1203,4 +1205,3 @@ export class ConfigService {
     this.unlockPassword = null
   }
 }
-

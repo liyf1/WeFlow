@@ -402,6 +402,8 @@ export interface ConversationAnalysisScanMessage {
   createTime: number
   sortSeq: number
   isSend: number | null
+  /** 发送者用户名（群聊中用于区分发言人；语义索引使用） */
+  senderUsername?: string | null
   parsedContent: string
   rawContent: string
   content: string
@@ -6409,6 +6411,7 @@ class ChatService {
         localType,
         createTime,
         isSend,
+        senderUsername,
         isVisibleForJourney,
         parsedContent: this.parseMessageContent(content, localType),
         rawContent: content,
@@ -11720,6 +11723,7 @@ class ChatService {
             createTime: message.createTime,
             sortSeq: this.getRowInt(sourceRows[index] || {}, ['sort_seq'], 0),
             isSend: message.isSend,
+            senderUsername: message.senderUsername ?? null,
             parsedContent: String(message.parsedContent || ''),
             rawContent: String(message.rawContent || ''),
             content: String(message.content || '')

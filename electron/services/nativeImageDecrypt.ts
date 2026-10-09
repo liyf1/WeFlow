@@ -47,11 +47,7 @@ function expandAsarCandidates(filePath: string): string[] {
   return [filePath.replace('app.asar', 'app.asar.unpacked'), filePath]
 }
 
-/**
- * 媒体解密原生插件（wedecrypt）路径：完全由外部用户配置提供（第三方可插拔实现），
- * 不再内置查找/校验来源。子 Worker 线程里 electron-store 可能不可用，因此这里既支持
- * 主线程直接读取 ConfigService，也支持子线程通过 setAddonPathOverride 接收显式传入的路径。
- */
+/** 可选自定义媒体解密插件路径；未配置时自动查找随包内置的 wedecrypt。 */
 let addonPathOverride: string | null | undefined
 
 export function setAddonPathOverride(path: string | null | undefined): void {
@@ -68,10 +64,38 @@ function getConfiguredAddonPath(): string | null {
   }
 }
 
+function getPlatformDir(): string {
+  if (process.platform === 'win32') return 'win32'
+  if (process.platform === 'darwin') return 'macos'
+  if (process.platform === 'linux') return 'linux'
+  return process.platform
+}
+
+function getArchDir(): string {
+  if (process.arch === 'x64') return 'x64'
+  if (process.arch === 'arm64') return 'arm64'
+  return process.arch
+}
+
 function getAddonCandidates(): string[] {
   const configured = getConfiguredAddonPath()
-  if (!configured) return []
-  return Array.from(new Set(expandAsarCandidates(configured)))
+  const platformDir = getPlatformDir()
+  const archDir = getArchDir()
+  const fileName = `weflow-image-native-${platformDir}-${archDir}.node`
+  const roots = [
+    join(process.cwd(), 'resources', 'wedecrypt', platformDir, archDir),
+    ...(process.resourcesPath
+      ? [
+          join(process.resourcesPath, 'resources', 'wedecrypt', platformDir, archDir),
+          join(process.resourcesPath, 'wedecrypt', platformDir, archDir)
+        ]
+      : [])
+  ]
+  const candidates = [
+    ...(configured ? [configured] : []),
+    ...roots.map((root) => join(root, fileName))
+  ]
+  return Array.from(new Set(candidates.flatMap(expandAsarCandidates)))
 }
 
 function loadAddon(): NativeAddon | null {

@@ -176,6 +176,9 @@ export default defineConfig({
             rollupOptions: {
               external: [
                 'better-sqlite3',
+                'sqlite-vec',
+                '@huggingface/transformers',
+                'onnxruntime-node',
                 'koffi',
                 'fsevents',
                 'whisper-node',
@@ -268,6 +271,9 @@ export default defineConfig({
             rollupOptions: {
               external: [
                 'better-sqlite3',
+                'sqlite-vec',
+                '@huggingface/transformers',
+                'onnxruntime-node',
                 'koffi',
                 'fsevents'
               ],
@@ -307,6 +313,9 @@ export default defineConfig({
             rollupOptions: {
               external: [
                 'better-sqlite3',
+                'sqlite-vec',
+                '@huggingface/transformers',
+                'onnxruntime-node',
                 'koffi',
                 'fsevents',
                 'exceljs'
@@ -344,6 +353,9 @@ export default defineConfig({
             rollupOptions: {
               external: [
                 'better-sqlite3',
+                'sqlite-vec',
+                '@huggingface/transformers',
+                'onnxruntime-node',
                 'koffi',
                 'fsevents',
                 'whisper-node',
@@ -373,6 +385,30 @@ export default defineConfig({
             rollupOptions: {
               output: {
                 entryFileNames: 'agentTitleWorker.js',
+                codeSplitting: false
+              }
+            }
+          }
+        }
+      },
+      {
+        entry: 'electron/semanticIndexWorker.ts',
+        onstart: handleElectronOnStart,
+        vite: {
+          plugins: [copyJiebaNodeWasmPlugin()],
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: [
+                'better-sqlite3',
+                'sqlite-vec',
+                '@huggingface/transformers',
+                'onnxruntime-node',
+                'sharp',
+                'electron'
+              ],
+              output: {
+                entryFileNames: 'semanticIndexWorker.js',
                 codeSplitting: false
               }
             }

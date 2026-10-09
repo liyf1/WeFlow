@@ -7,6 +7,23 @@ type CloseConfirmPayload = {
 
 // 暴露给渲染进程的 API
 contextBridge.exposeInMainWorld('electronAPI', {
+  // 语义检索
+  semantic: {
+    getConfig: () => ipcRenderer.invoke('semantic:getConfig'),
+    setConfig: (patch: Record<string, unknown>) => ipcRenderer.invoke('semantic:setConfig', patch),
+    getStatus: () => ipcRenderer.invoke('semantic:getStatus'),
+    getLocations: () => ipcRenderer.invoke('semantic:getLocations'),
+    search: (request: Record<string, unknown>) => ipcRenderer.invoke('semantic:search', request),
+    sync: () => ipcRenderer.invoke('semantic:sync'),
+    pause: () => ipcRenderer.invoke('semantic:pause'),
+    resume: () => ipcRenderer.invoke('semantic:resume'),
+    rebuild: () => ipcRenderer.invoke('semantic:rebuild'),
+    onStatus: (callback: (status: unknown) => void) => {
+      const listener = (_: unknown, status: unknown) => callback(status)
+      ipcRenderer.on('semantic:status', listener)
+      return () => ipcRenderer.removeListener('semantic:status', listener)
+    },
+  },
   // 配置
   config: {
     get: (key: string) => ipcRenderer.invoke('config:get', key),

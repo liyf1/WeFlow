@@ -59,6 +59,8 @@ Thumbs.db
 *.aps
 
 wcdb/
+!resources/wcdb/
+!resources/wcdb/**
 xkey/
 server/
 *info
@@ -84,4 +86,7 @@ weflow-web-offical
 /scripts/agent/
 patches/
 mmtls/
-.tmp/
+.tmp/dist-test/
+
+# 打包时下载的内置嵌入模型
+resources/models/

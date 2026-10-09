@@ -31,6 +31,7 @@ const ChatAnalyticsHubPage = lazy(() => import('./pages/ChatAnalyticsHubPage'))
 const AgreementPage = lazy(() => import('./pages/AgreementPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const MyFootprintPage = lazy(() => import('./pages/MyFootprintPage'))
+const SemanticSearchPage = lazy(() => import('./pages/SemanticSearchPage'))
 const VideoWindow = lazy(() => import('./pages/VideoWindow'))
 const ImageWindow = lazy(() => import('./pages/ImageWindow'))
 const SnsPage = lazy(() => import('./pages/SnsPage'))
@@ -846,6 +847,7 @@ function App() {
                 <Route path="/dual-report/view" element={<DualReportWindow />} />
                 <Route path="/relationship-achievements/:sessionId" element={<RelationshipAchievementsPage />} />
                 <Route path="/footprint" element={<MyFootprintPage />} />
+                <Route path="/semantic-search" element={<SemanticSearchPage />} />
 
                 <Route path="/export" element={<div className="export-route-anchor" aria-hidden="true" />} />
                 <Route path="/sns" element={<SnsPage />} />

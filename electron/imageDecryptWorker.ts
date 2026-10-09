@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'worker_threads'
 import { decryptDatViaNative, nativeAddonLocation, setAddonPathOverride } from './services/nativeImageDecrypt'
 
-// worker_threads 中 electron-store 可能不可用，第三方插件路径由主线程通过 workerData 显式传入
+// worker_threads 中 electron-store 可能不可用，自定义插件路径由主线程传入，留空时使用内置插件
 setAddonPathOverride(workerData?.imageNativeAddonPath || null)
 
 type DecryptRequest = {

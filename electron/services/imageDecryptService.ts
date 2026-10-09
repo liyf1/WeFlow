@@ -708,7 +708,7 @@ export class ImageDecryptService {
       if (!nativeResult) {
         const notConfigured = !nativeAddonLocation()
         const message = notConfigured
-          ? '未配置媒体解密实现，请在设置中指定第三方插件路径'
+          ? '未找到媒体解密组件，请检查安装包是否完整'
           : '媒体解密失败，请检查密钥配置'
         this.emitDecryptProgress(payload, cacheKey, 'failed', 100, 'error', message)
         return { success: false, error: message, failureKind: 'not_found' }
