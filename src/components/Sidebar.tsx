@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { Home, MessageSquare, MessageSquareMore, BarChart3, FileText, Settings, Download, Aperture, UserCircle, Lock, LockOpen, ChevronUp, FolderClosed, Footprints, Users, ArchiveRestore, Sparkles, CircleHelp } from 'lucide-react'
+import { Home, MessageSquare, MessageSquareMore, BarChart3, FileText, Settings, Download, Aperture, UserCircle, Lock, LockOpen, ChevronUp, FolderClosed, Footprints, Users, ArchiveRestore, Sparkles, CircleHelp, ScanSearch } from 'lucide-react'
 import { useAppStore } from '../stores/appStore'
 import * as configService from '../services/config'
 import { onExportSessionStatus, requestExportSessionStatus } from '../services/exportBridge'
@@ -416,6 +416,16 @@ function Sidebar({ collapsed }: SidebarProps) {
           >
             <span className="nav-icon"><Footprints size={20} /></span>
             <span className="nav-label">我的足迹</span>
+          </NavLink>
+
+          {/* 语义检索 */}
+          <NavLink
+            to="/semantic-search"
+            className={`nav-item ${isActive('/semantic-search') ? 'active' : ''}`}
+            title={collapsed ? '语义检索' : undefined}
+          >
+            <span className="nav-icon"><ScanSearch size={20} /></span>
+            <span className="nav-label">语义检索</span>
           </NavLink>
 
           {/* 导出 */}

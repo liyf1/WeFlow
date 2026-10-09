@@ -84,4 +84,4 @@ weflow-web-offical
 /scripts/agent/
 patches/
 mmtls/
-.tmp/
+.tmp/dist-test/

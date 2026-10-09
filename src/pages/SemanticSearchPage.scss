@@ -1,0 +1,233 @@
+.semantic-search-page {
+  min-height: 100%;
+  margin: -24px -24px 0;
+  padding: 32px 40px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  color: var(--text-primary);
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 13px;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    &.danger {
+      color: #dc2626;
+    }
+  }
+
+  input[type='date'],
+  select {
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+  }
+}
+
+.semantic-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.semantic-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--primary);
+
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    color: var(--text-primary);
+  }
+}
+
+.semantic-subtitle,
+.semantic-muted {
+  color: var(--text-tertiary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.semantic-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+  background: var(--bg-secondary);
+}
+
+.semantic-row,
+.semantic-actions,
+.semantic-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+
+.semantic-actions {
+  gap: 8px;
+}
+
+.semantic-switch,
+.semantic-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.semantic-status {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+
+.semantic-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+
+  div {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s ease;
+  }
+}
+
+.semantic-search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.semantic-search-input {
+  flex: 1 1 320px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-tertiary);
+
+  input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 14px;
+  }
+}
+
+.semantic-notice {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.semantic-error {
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.semantic-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.semantic-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.semantic-hit {
+  width: 100%;
+  flex-direction: column;
+  align-items: stretch !important;
+  text-align: left;
+  gap: 8px !important;
+  padding: 12px 14px !important;
+  background: var(--bg-primary) !important;
+
+  &:hover {
+    border-color: var(--primary) !important;
+  }
+}
+
+.semantic-hit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+
+  strong {
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+}
+
+.semantic-tag {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.semantic-hit-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+
+  p {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+}
+
+.semantic-spin {
+  animation: semanticSpin 1s linear infinite;
+}
+
+@keyframes semanticSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

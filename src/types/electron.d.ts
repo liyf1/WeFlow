@@ -1,4 +1,10 @@
 import type { ChatSession, Message, Contact, ContactInfo, ChatRecordItem } from './models'
+import type {
+  SemanticIndexStatus,
+  SemanticSearchConfig,
+  SemanticSearchRequest,
+  SemanticSearchResult,
+} from '../../electron/services/semantic/types'
 
 
 export interface SessionChatWindowOpenOptions {
@@ -480,6 +486,17 @@ export interface RelayOneOrderInfo {
 }
 
 export interface ElectronAPI {
+  semantic: {
+    getConfig: () => Promise<SemanticSearchConfig>
+    setConfig: (patch: Partial<SemanticSearchConfig>) => Promise<SemanticSearchConfig>
+    getStatus: () => Promise<SemanticIndexStatus>
+    search: (request: SemanticSearchRequest) => Promise<SemanticSearchResult>
+    sync: () => Promise<SemanticIndexStatus>
+    pause: () => Promise<SemanticIndexStatus>
+    resume: () => Promise<SemanticIndexStatus>
+    rebuild: () => Promise<SemanticIndexStatus>
+    onStatus: (callback: (status: SemanticIndexStatus) => void) => () => void
+  }
   window: {
     minimize: () => void
     maximize: () => void

@@ -188,6 +188,8 @@ export interface RelationshipJourneyMessage {
   localType: number
   createTime: number
   isSend: number | null
+  /** Sender username when known (used by the semantic index for group speakers). */
+  senderUsername?: string | null
   /** Main-process visibility guard; false rows count toward raw totals but never semantic moments. */
   isVisibleForJourney?: boolean
   parsedContent?: string

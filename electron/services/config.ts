@@ -31,6 +31,8 @@ const isSafeStorageAvailable = (): boolean => {
 const LOCK_PREFIX = 'lock:'  // 密码派生密钥加密（锁定模式）
 
 interface ConfigSchema {
+  /** 语义检索设置（见 services/semantic/types.ts 的 SemanticSearchConfig） */
+  semanticSearch?: Record<string, unknown>
   // 数据库相关
   dbPath: string
   decryptKey: string

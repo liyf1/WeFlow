@@ -157,6 +157,7 @@ import {
   waitForAgentTransportRetry,
 } from './agentRetryPolicy'
 import { initialAgentToolNames, resolveAgentToolRequest } from './agentToolCatalog'
+import { isSemanticSearchEnabled, runAgentSemanticSearch } from './semantic/agentSemanticSearch'
 import { explicitlyRequestsWebSearch, shouldRequireAgentWebSearch } from './agentWebSearchPolicy'
 
 const AGENT_EXPLICIT_MEDIA_READ_MAX_RECOVERY_STEPS = 3
@@ -5254,6 +5255,68 @@ export class AgentService {
       },
     })
 
+    const semanticSearchMessages = traceTool({
+      name: 'semantic_search_messages',
+      title: (input: { query: string }) => `正在按意思检索“${text(input.query).slice(0, 24)}”`,
+      execute: async (input: { query: string; sessionId?: string; startDate?: string; endDate?: string; limit?: number; includeGroups?: boolean; workingNotes?: string }) => {
+        const query = text(input.query).replace(/\s+/g, ' ').slice(0, 300)
+        if (!query) return { success: false, error: '检索描述不能为空' }
+        let sessionIds: string[] | undefined
+        if (scope.kind === 'session' || input.sessionId || scopedSessionIds.size === 1) {
+          const resolved = await resolveSession(input.sessionId)
+          if ('error' in resolved) return { success: false, error: resolved.error, candidates: resolved.candidates || [] }
+          sessionIds = [resolved.sessionId]
+        } else if (scopedSessionIds.size > 1) {
+          sessionIds = Array.from(scopedSessionIds)
+        }
+        const scopeRange = scopeDateRange(scope)
+        const startTime = input.startDate ? parseDateBoundary(input.startDate, false) : scopeRange.startTime
+        const endTime = input.endDate ? parseDateBoundary(input.endDate, true) : scopeRange.endTime
+        if (input.startDate && !startTime) return { success: false, error: 'startDate 必须是 YYYY-MM-DD' }
+        if (input.endDate && !endTime) return { success: false, error: 'endDate 必须是 YYYY-MM-DD' }
+        const limit = Math.max(1, Math.min(20, Math.floor(Number(input.limit) || 8)))
+        const result = await runAgentSemanticSearch({
+          query,
+          sessionIds,
+          beginTs: startTime || undefined,
+          endTs: endTime || undefined,
+          includeGroups: sessionIds ? undefined : input.includeGroups === true,
+          topK: limit,
+        })
+        if (!result.success) return { success: false, error: result.error || '语义检索失败' }
+        const sessions = await getSessionCatalog()
+        const nameMap = new Map(sessions.map((session) => [text(session.username), text(session.displayName || session.username)]))
+        const matches = (result.hits || []).map((hit) => {
+          const conversation = nameMap.get(hit.sessionId) || hit.sessionId
+          sessionDisplayNames.set(hit.sessionId, conversation)
+          return {
+            conversation,
+            sessionId: hit.sessionId,
+            isGroup: hit.isGroup,
+            startAt: formatAgentRawTime(hit.startTs),
+            endAt: formatAgentRawTime(hit.endTs),
+            matchedBy: hit.matchedBy,
+            preview: hit.text.slice(0, 600),
+            messageRef: Buffer.from(JSON.stringify({
+              version: 1,
+              sessionId: hit.sessionId,
+              localId: hit.firstLocalId,
+              createTime: hit.startTs,
+            }), 'utf8').toString('base64url'),
+          }
+        })
+        return {
+          success: true,
+          query,
+          searchMode: 'semantic',
+          count: matches.length,
+          matches,
+          notice: result.notice,
+          note: '按意思召回的对话片段，预览只是片段开头，不是完整上下文；排序只表示与描述的相似程度，不代表重要性。需要原文时用 read_message_thread 打开 messageRef。人名、金额、单号等确定字面请改用 search_raw_messages。',
+        }
+      },
+    })
+
     const locateConversationsByMessageText = traceTool({
       name: 'locate_conversations_by_message_text',
       title: '正在按模型选择的字面线索定位会话',
@@ -6631,6 +6694,21 @@ export class AgentService {
           }),
           execute: searchRawMessages,
         }),
+        ...(isSemanticSearchEnabled() ? {
+          semantic_search_messages: tool({
+            description: '按意思检索聊天记录片段（本地语义索引，向量与关键词混合召回），适合不知道原文措辞的问题，例如“讨论换工作的那次对话”。返回对话片段预览和 messageRef；需要完整上下文时用 read_message_thread。人名、金额、单号等能确定字面的内容优先用 search_raw_messages。全局检索默认只查直接会话，确实需要群聊时设置 includeGroups=true。',
+            inputSchema: z.object({
+              query: z.string().min(1).max(300).describe('用自然语言描述要找的内容，不必是原文'),
+              sessionId: z.string().max(512).describe('优先原样复制会话目录返回的稳定 sessionId；也接受唯一联系人显示名').optional(),
+              startDate: z.string().max(10).optional(),
+              endDate: z.string().max(10).optional(),
+              limit: z.number().int().min(1).max(20).optional(),
+              includeGroups: z.boolean().optional(),
+              workingNotes: z.string().max(4_000).optional(),
+            }),
+            execute: semanticSearchMessages,
+          }),
+        } : {}),
         locate_conversations_by_message_text: tool({
           description: '由模型提供少量短字面线索，在多个会话中定位可能相关的原文。它只返回逐字命中，不做语义评分、来源排名或结论；命中后是否读取连续上下文由模型决定。默认只查直接会话，确实需要群聊时设置 includeGroups=true。',
           inputSchema: z.object({
@@ -7040,6 +7118,7 @@ export class AgentService {
       read_message_thread: '围绕消息或时间锚点读取完整事件',
       read_event_contexts: '批量读取模型选定的多个完整事件',
       search_raw_messages: '在消息正文中逐字搜索；限定会话时另传 sessionId',
+      semantic_search_messages: '按意思检索对话片段（不必知道原文措辞）',
       locate_conversations_by_message_text: '跨会话做字面定位',
       search_and_read_raw_messages: '字面定位并展开少量上下文',
       analyze_interaction_patterns: '确定性的互动趋势与沉默区间',
@@ -9224,6 +9303,7 @@ export class AgentService {
             || [
               'list_conversation_manifest',
               'search_raw_messages',
+              'semantic_search_messages',
               'locate_conversations_by_message_text',
               'get_conversation_stats',
             ].includes(text(call?.toolName))
