@@ -18,7 +18,9 @@ import { groupAnalyticsService } from './services/groupAnalyticsService'
 import { annualReportService } from './services/annualReportService'
 import { exportService, ExportOptions, ExportProgress } from './services/export'
 import { exportTaskControlService } from './services/exportTaskControlService'
-import { KeyProviderService } from './services/keyProviderService'
+import { KeyService } from './services/keyService'
+import { KeyServiceLinux } from './services/keyServiceLinux'
+import { KeyServiceMac } from './services/keyServiceMac'
 import { voiceTranscribeService } from './services/voiceTranscribeService'
 import { videoService } from './services/videoService'
 import { snsService, isVideoUrl } from './services/snsService'
@@ -697,7 +699,14 @@ let splashWindow: BrowserWindow | null = null
 const sessionChatWindows = new Map<string, BrowserWindow>()
 const sessionChatWindowSources = new Map<string, 'chat' | 'export'>()
 
-const keyService = new KeyProviderService()
+let keyService: any
+if (process.platform === 'darwin') {
+  keyService = new KeyServiceMac()
+} else if (process.platform === 'linux') {
+  keyService = new KeyServiceLinux()
+} else {
+  keyService = new KeyService()
+}
 
 let mainWindowReady = false
 let shouldShowMain = true

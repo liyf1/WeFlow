@@ -179,7 +179,6 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
   const [accountId, setAccountId] = useState('')
   const [cachePath, setCachePath] = useState('')
   const [wcdbLibPath, setWcdbLibPath] = useState('')
-  const [keyProviderPath, setKeyProviderPath] = useState('')
   const [imageNativeAddonPath, setImageNativeAddonPath] = useState('')
   const [welivePath, setWelivePath] = useState('')
   const [imgHelperLibPath, setImgHelperLibPath] = useState('')
@@ -637,7 +636,6 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       if (savedCachePath) setCachePath(savedCachePath)
 
       setWcdbLibPath(await configService.getWcdbLibPath())
-      setKeyProviderPath(await configService.getKeyProviderPath())
       setImageNativeAddonPath(await configService.getImageNativeAddonPath())
       setWelivePath(await configService.getWelivePath())
       setImgHelperLibPath(await configService.getImgHelperLibPath())
@@ -1350,10 +1348,6 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
   const handleSelectWcdbLibPath = () => handleSelectThirdPartyPath('选择第三方 WCDB 实现库文件', async (path) => {
     setWcdbLibPath(path)
     await configService.setWcdbLibPath(path)
-  })
-  const handleSelectKeyProviderPath = () => handleSelectThirdPartyPath('选择第三方密钥获取工具', async (path) => {
-    setKeyProviderPath(path)
-    await configService.setKeyProviderPath(path)
   })
   const handleSelectImageNativeAddonPath = () => handleSelectThirdPartyPath('选择第三方媒体解密插件', async (path) => {
     setImageNativeAddonPath(path)
@@ -2658,7 +2652,7 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
       <div className="form-group">
         <label>第三方组件路径</label>
         <span className="form-hint">
-          WeFlow 不再内置数据解密相关的原生组件，以下四项均需自行提供符合接口约定的实现，留空则对应功能返回"未配置"提示
+          数据库与图片密钥由 WeFlow 内置组件按当前系统自动获取；下列其他数据处理组件仍可按需指定第三方实现路径
         </span>
       </div>
 
@@ -2676,22 +2670,6 @@ function SettingsPage({ onClose }: SettingsPageProps = {}) {
           }}
         />
         <button className="btn btn-secondary btn-sm" onClick={handleSelectWcdbLibPath}><FolderOpen size={14} /> 浏览选择</button>
-      </div>
-
-      <div className="form-group">
-        <label>密钥获取工具路径</label>
-        <span className="form-hint">用于获取数据库密钥/图片密钥的可执行文件，详见密钥获取工具协议文档</span>
-        <input
-          type="text"
-          placeholder="未配置"
-          value={keyProviderPath}
-          onChange={(e) => {
-            const value = e.target.value
-            setKeyProviderPath(value)
-            scheduleConfigSave('keyProviderPath', () => configService.setKeyProviderPath(value))
-          }}
-        />
-        <button className="btn btn-secondary btn-sm" onClick={handleSelectKeyProviderPath}><FolderOpen size={14} /> 浏览选择</button>
       </div>
 
       <div className="form-group">
@@ -6414,7 +6392,6 @@ JSON 输出格式：
 }
 
 export default SettingsPage
-
 
 
 
